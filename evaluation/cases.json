@@ -1,0 +1,21 @@
+[
+  {
+    "name": "percentage coupon",
+    "description": "Checkout total is wrong when a percentage coupon is applied.",
+    "expected_function": "applyCoupon",
+    "expected_commit": "abc123"
+  },
+  {
+    "name": "duplicate tax",
+    "description": "Tax is being charged twice for a taxable order.",
+    "expected_function": "calculateTax",
+    "expected_commit": "def456"
+  },
+  {
+    "name": "cart removal",
+    "description": "Removing an item does not update the cart total.",
+    "expected_function": "removeItem",
+    "expected_commit": "ghi789"
+  }
+]
+

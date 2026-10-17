@@ -1,0 +1,21 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: bug-trail-falkordb
+    ports:
+      - "6379:6379"
+      - "3000:3000"
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      - falkordb
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: 6379
+      FALKORDB_GRAPH: BugTrail
+    ports:
+      - "8080:8000"
+    restart: unless-stopped
+
