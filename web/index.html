@@ -1,85 +1,470 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bug Trail</title>
-  <style>
-    :root { --ink:#17202a; --muted:#6b7280; --line:#e7e9ee; --blue:#3559e0; --soft:#f6f8ff; --green:#16805a; }
-    * { box-sizing:border-box; } body { margin:0; background:#fafbfc; color:var(--ink); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
-    .shell { max-width:1180px; margin:0 auto; padding:38px 24px 60px; }
-    header { display:flex; justify-content:space-between; align-items:center; margin-bottom:34px; }
-    .brand { display:flex; gap:12px; align-items:center; } .mark { width:39px; height:39px; border-radius:12px; display:grid; place-items:center; background:#17202a; color:white; font-weight:800; }
-    h1 { margin:0; font-size:25px; letter-spacing:-.04em; } .tag { color:var(--muted); font-size:13px; } .status { color:var(--green); font-size:13px; }
-    .hero { display:grid; grid-template-columns:1.1fr .9fr; gap:22px; margin-bottom:22px; } .panel { background:white; border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:0 5px 20px rgba(20,30,55,.035); }
-    .panel h2 { margin:0 0 8px; font-size:18px; } .panel p { margin:0 0 18px; color:var(--muted); }
-    textarea { width:100%; min-height:106px; resize:vertical; border:1px solid #d9dce5; border-radius:12px; padding:14px; font:inherit; outline:none; } textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px #e9edff; }
-    button { border:0; border-radius:10px; background:var(--blue); color:white; padding:11px 17px; font-weight:700; cursor:pointer; margin-top:12px; } button:disabled { opacity:.55; cursor:wait; }
-    .examples { display:flex; gap:8px; flex-wrap:wrap; margin-top:13px; } .example { background:var(--soft); color:#30479b; border:1px solid #dfe5ff; padding:7px 10px; border-radius:8px; font-size:12px; cursor:pointer; }
-    .how { background:linear-gradient(135deg,#1c2541,#2e4dc7); color:#fff; } .how p { color:#dbe2ff; } .how ol { padding-left:20px; margin:12px 0 0; color:#eef1ff; } .how li { padding:4px 0; }
-    #empty { min-height:310px; display:grid; place-items:center; text-align:center; color:var(--muted); } #results { display:none; }
-    .result-head { display:flex; justify-content:space-between; align-items:start; gap:15px; } .function { font-size:27px; font-weight:800; letter-spacing:-.04em; } .confidence { color:var(--green); font-weight:800; }
-    .summary { margin:17px 0; padding:15px; border-radius:12px; background:#f5f8ff; border-left:4px solid var(--blue); }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; } .card { border:1px solid var(--line); border-radius:13px; padding:16px; } .card h3 { margin:0 0 10px; font-size:14px; } .muted { color:var(--muted); }
-    .path { display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .node { background:#eef2ff; border:1px solid #dce4ff; color:#30479b; padding:8px 10px; border-radius:8px; font-family:ui-monospace,monospace; font-size:12px; } .arrow { color:#9aa2b3; }
-    .commit { background:#f8faf9; border:1px solid #dbeee5; padding:12px; border-radius:10px; } .commit b { color:var(--green); font-family:ui-monospace,monospace; } .timeline { margin:0; padding:0; list-style:none; } .timeline li { padding:8px 0 8px 17px; border-left:2px solid #dbe4ff; position:relative; } .timeline li:before { content:''; width:7px; height:7px; border-radius:50%; background:var(--blue); position:absolute; left:-4px; top:15px; }
-    pre { white-space:pre-wrap; background:#101827; color:#dbe7ff; padding:13px; border-radius:10px; font-size:12px; overflow:auto; } .error { color:#b42318; padding:12px; }
-    @media(max-width:800px){ .hero,.grid{grid-template-columns:1fr;} header{align-items:flex-start; gap:10px; flex-direction:column;} }
-  </style>
-</head>
-<body>
-  <main class="shell">
-    <header><div class="brand"><div class="mark">BT</div><div><h1>Bug Trail</h1><div class="tag">Explainable codebase intelligence powered by FalkorDB</div></div></div><div id="status" class="status">Checking FalkorDB…</div></header>
-    <section class="hero">
-      <div class="panel"><h2>Investigate a bug</h2><p>Describe the symptom in plain English. Bug Trail will trace functions, commits, developers, and historical fixes.</p><textarea id="description">Checkout total is wrong when a percentage coupon is applied.</textarea><button id="investigate">Trace this bug</button><div class="examples"><span class="example">Tax is being charged twice for a taxable order.</span><span class="example">Removing an item does not update the cart total.</span></div></div>
-      <div class="panel how"><h2>What the graph does</h2><p>Every answer is backed by connected code and engineering history.</p><ol><li>Find candidate functions from the report</li><li>Follow the call graph through FalkorDB</li><li>Connect functions to commits and developers</li><li>Recall similar bugs and previous fixes</li><li>Save this investigation for next time</li></ol></div>
-    </section>
-    <section id="empty" class="panel"><div><div style="font-size:38px;margin-bottom:8px">⌁</div><h2>Ready to trace the first bug</h2><p>Submit a report to see its evidence path.</p></div></section>
-    <section id="results" class="panel">
-      <div class="result-head"><div><div class="muted">Most likely origin</div><div id="function" class="function"></div></div><div id="confidence" class="confidence"></div></div>
-      <div id="summary" class="summary"></div>
-      <div class="grid">
-        <div class="card"><h3>Evidence path</h3><div id="path" class="path"></div><div id="graph" style="margin-top:16px"></div></div>
-        <div class="card"><h3>Likely introducing commit</h3><div id="commit"></div></div>
-        <div class="card"><h3>Historical memory</h3><div id="memory"></div></div>
-        <div class="card"><h3>Semantic extraction</h3><div id="semantic"></div></div>
-        <div class="card"><h3>Regression test recommendation</h3><div id="test"></div></div>
-        <div class="card"><h3>Investigation timeline</h3><ul id="timeline" class="timeline"></ul></div>
-      </div>
-      <div class="card" style="margin-top:16px"><h3>Cypher used by Bug Trail</h3><pre id="queries"></pre></div>
-    </section>
-  </main>
-  <script>
-    const $ = id => document.getElementById(id);
-    document.querySelectorAll('.example').forEach(el => el.onclick = () => $('description').value = el.textContent);
-    fetch('/api/health').then(r => r.json()).then(() => $('status').textContent = '● FalkorDB connected').catch(() => $('status').textContent = '○ FalkorDB unavailable');
-    $('investigate').onclick = async () => {
-      const button = $('investigate'); button.disabled = true; button.textContent = 'Tracing graph…';
-      try {
-        const response = await fetch('/api/investigate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({description:$('description').value}) });
-        const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Investigation failed'); render(data);
-      } catch (error) { $('empty').innerHTML = `<div class="error">${error.message}<br><span class="muted">Start FalkorDB and seed the graph first.</span></div>`; }
-      finally { button.disabled = false; button.textContent = 'Trace this bug'; }
-    };
-    function render(data) {
-      $('empty').style.display = 'none'; $('results').style.display = 'block'; $('function').textContent = data.suspected_function; $('confidence').textContent = `${data.confidence}% confidence`; $('summary').textContent = data.summary;
-      if (data.needs_clarification) $('summary').textContent += ' This report is too vague or outside the loaded codebase; please provide the affected behavior or module for a more reliable trace.';
-      $('path').innerHTML = data.evidence.call_path.map((n,i) => `<span class="node">${n}</span>${i < data.evidence.call_path.length-1 ? '<span class="arrow">→</span>' : ''}`).join('');
-      drawGraph(data);
-      const c = data.evidence.commit; $('commit').innerHTML = c.id ? `<div class="commit"><b>${c.id}</b><br>${c.message}<br><span class="muted">${c.developer} · ${c.timestamp}</span></div>` : '<span class="muted">No commit found</span>';
-      const m = data.similar_bug; $('memory').innerHTML = m ? `<div class="commit"><b>Similar bug recalled</b><br>${m.description}<br><span class="muted">Fix: ${m.fix || 'historical investigation stored'}</span></div>` : data.needs_clarification ? '<span class="muted">Not saved: the report could not be mapped to a known function.</span>' : '<span class="muted">No previous matching bug yet. This investigation is now saved to memory.</span>';
-      const s = data.semantic_extraction; $('semantic').innerHTML = s ? `<div class="commit"><b>LLM concepts</b><br>${[...(s.entities || []), ...(s.search_terms || [])].join(', ')}<br><span class="muted">Concepts are validated against the FalkorDB function graph.</span></div>` : '<span class="muted">Deterministic fallback used. Add a Gemini or OpenRouter key to enable semantic extraction.</span>';
-      const t = data.test_recommendation; $('test').innerHTML = `<div class="commit"><b>${t.status === 'historical' ? 'Existing test found' : t.status === 'unavailable' ? 'Not enough evidence' : 'Suggested test'}</b><br>${t.name}<br><span class="muted">${t.rationale}</span></div>`;
-      $('timeline').innerHTML = [`Parsed report (${data.analysis_mode})`, `Found ${data.ranked_candidates.length} candidate function(s)`, `Traversed call graph`, `Connected code to commit history`, m ? 'Recalled historical bug' : 'Saved new bug memory', 'Generated regression-test recommendation'].map(x => `<li>${x}</li>`).join(''); $('queries').textContent = JSON.stringify(data.queries, null, 2);
-    }
-    function drawGraph(data) {
-      const nodes = data.evidence.call_path;
-      const width = Math.max(520, nodes.length * 150), height = 112;
-      const positions = nodes.map((_, i) => 75 + i * 145);
-      const lines = positions.slice(0, -1).map((x, i) => `<line x1="${x+54}" y1="48" x2="${positions[i+1]-54}" y2="48" stroke="#9aaef5" stroke-width="3" marker-end="url(#arrow)"/>`).join('');
-      const circles = nodes.map((name, i) => `<g><rect x="${positions[i]-54}" y="26" width="108" height="44" rx="10" fill="${i === 0 ? '#3559e0' : '#eef2ff'}" stroke="${i === 0 ? '#3559e0' : '#cbd6ff'}"/><text x="${positions[i]}" y="53" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="${i === 0 ? 'white' : '#30479b'}">${name}</text></g>`).join('');
-      $('graph').innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="Function call graph"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9aaef5"/></marker></defs>${lines}${circles}</svg>`;
-    }
-  </script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bug Trail</title>
+    <style>
+      :root {
+        --ink: #17202a;
+        --muted: #6b7280;
+        --line: #e7e9ee;
+        --blue: #3559e0;
+        --soft: #f6f8ff;
+        --green: #16805a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #fafbfc;
+        color: var(--ink);
+        font:
+          15px/1.5 Inter,
+          ui-sans-serif,
+          system-ui,
+          sans-serif;
+      }
+      .shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 38px 24px 60px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 34px;
+      }
+      .brand {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .mark {
+        width: 39px;
+        height: 39px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: #17202a;
+        color: white;
+        font-weight: 800;
+      }
+      h1 {
+        margin: 0;
+        font-size: 25px;
+        letter-spacing: -0.04em;
+      }
+      .tag {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .status {
+        color: var(--green);
+        font-size: 13px;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 22px;
+        margin-bottom: 22px;
+      }
+      .panel {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 5px 20px rgba(20, 30, 55, 0.035);
+      }
+      .panel h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .panel p {
+        margin: 0 0 18px;
+        color: var(--muted);
+      }
+      textarea {
+        width: 100%;
+        min-height: 106px;
+        resize: vertical;
+        border: 1px solid #d9dce5;
+        border-radius: 12px;
+        padding: 14px;
+        font: inherit;
+        outline: none;
+      }
+      textarea:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px #e9edff;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        background: var(--blue);
+        color: white;
+        padding: 11px 17px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .examples {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 13px;
+      }
+      .example {
+        background: var(--soft);
+        color: #30479b;
+        border: 1px solid #dfe5ff;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .how {
+        background: linear-gradient(135deg, #1c2541, #2e4dc7);
+        color: #fff;
+      }
+      .how p {
+        color: #dbe2ff;
+      }
+      .how ol {
+        padding-left: 20px;
+        margin: 12px 0 0;
+        color: #eef1ff;
+      }
+      .how li {
+        padding: 4px 0;
+      }
+      #empty {
+        min-height: 310px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: var(--muted);
+      }
+      #results {
+        display: none;
+      }
+      .result-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 15px;
+      }
+      .function {
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+      .confidence {
+        color: var(--green);
+        font-weight: 800;
+      }
+      .summary {
+        margin: 17px 0;
+        padding: 15px;
+        border-radius: 12px;
+        background: #f5f8ff;
+        border-left: 4px solid var(--blue);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 16px;
+      }
+      .card h3 {
+        margin: 0 0 10px;
+        font-size: 14px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .path {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .node {
+        background: #eef2ff;
+        border: 1px solid #dce4ff;
+        color: #30479b;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .arrow {
+        color: #9aa2b3;
+      }
+      .commit {
+        background: #f8faf9;
+        border: 1px solid #dbeee5;
+        padding: 12px;
+        border-radius: 10px;
+      }
+      .commit b {
+        color: var(--green);
+        font-family: ui-monospace, monospace;
+      }
+      .timeline {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .timeline li {
+        padding: 8px 0 8px 17px;
+        border-left: 2px solid #dbe4ff;
+        position: relative;
+      }
+      .timeline li:before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--blue);
+        position: absolute;
+        left: -4px;
+        top: 15px;
+      }
+      pre {
+        white-space: pre-wrap;
+        background: #101827;
+        color: #dbe7ff;
+        padding: 13px;
+        border-radius: 10px;
+        font-size: 12px;
+        overflow: auto;
+      }
+      .error {
+        color: #b42318;
+        padding: 12px;
+      }
+      @media (max-width: 800px) {
+        .hero,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        header {
+          align-items: flex-start;
+          gap: 10px;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand">
+          <div class="mark">BT</div>
+          <div>
+            <h1>Bug Trail</h1>
+            <div class="tag">
+              Explainable codebase intelligence powered by FalkorDB
+            </div>
+          </div>
+        </div>
+        <div id="status" class="status">Checking FalkorDB…</div>
+      </header>
+      <section class="hero">
+        <div class="panel">
+          <h2>Investigate a bug</h2>
+          <p>
+            Describe the symptom in plain English. Bug Trail will trace
+            functions, commits, developers, and historical fixes.
+          </p>
+          <textarea
+            id="description"
+            placeholder="Describe the bug..."
+          ></textarea
+          ><button id="investigate">Trace this bug</button>
+          <div class="examples">
+            <span class="example"
+              >Tax is being charged twice for a taxable order.</span
+            ><span class="example"
+              >Removing an item does not update the cart total.</span
+            >
+          </div>
+        </div>
+        <div class="panel how">
+          <h2>What the graph does</h2>
+          <p>
+            Every answer is backed by connected code and engineering history.
+          </p>
+          <ol>
+            <li>Find candidate functions from the report</li>
+            <li>Follow the call graph through FalkorDB</li>
+            <li>Connect functions to commits and developers</li>
+            <li>Recall similar bugs and previous fixes</li>
+            <li>Save this investigation for next time</li>
+          </ol>
+        </div>
+      </section>
+      <section id="empty" class="panel">
+        <div>
+          <div style="font-size: 38px; margin-bottom: 8px">⌁</div>
+          <h2>Ready to trace the first bug</h2>
+          <p>Submit a report to see its evidence path.</p>
+        </div>
+      </section>
+      <section id="results" class="panel">
+        <div class="result-head">
+          <div>
+            <div class="muted">Most likely origin</div>
+            <div id="function" class="function"></div>
+          </div>
+          <div id="confidence" class="confidence"></div>
+        </div>
+        <div id="summary" class="summary"></div>
+        <div class="grid">
+          <div class="card">
+            <h3>Evidence path</h3>
+            <div id="path" class="path"></div>
+            <div id="graph" style="margin-top: 16px"></div>
+          </div>
+          <div class="card">
+            <h3>Likely introducing commit</h3>
+            <div id="commit"></div>
+          </div>
+          <div class="card">
+            <h3>Historical memory</h3>
+            <div id="memory"></div>
+          </div>
+          <div class="card">
+            <h3>Semantic extraction</h3>
+            <div id="semantic"></div>
+          </div>
+          <div class="card">
+            <h3>Regression test recommendation</h3>
+            <div id="test"></div>
+          </div>
+          <div class="card">
+            <h3>Investigation timeline</h3>
+            <ul id="timeline" class="timeline"></ul>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 16px">
+          <h3>Cypher used by Bug Trail</h3>
+          <pre id="queries"></pre>
+        </div>
+      </section>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      document
+        .querySelectorAll(".example")
+        .forEach(
+          (el) =>
+            (el.onclick = () => ($("description").value = el.textContent)),
+        );
+      fetch("/api/health")
+        .then((r) => r.json())
+        .then(() => ($("status").textContent = "● FalkorDB connected"))
+        .catch(() => ($("status").textContent = "○ FalkorDB unavailable"));
+      $("investigate").onclick = async () => {
+        const button = $("investigate");
+        button.disabled = true;
+        button.textContent = "Tracing graph…";
+        try {
+          const response = await fetch("/api/investigate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: $("description").value }),
+          });
+          const data = await response.json();
+          if (!response.ok)
+            throw new Error(data.detail || "Investigation failed");
+          render(data);
+        } catch (error) {
+          $("empty").innerHTML =
+            `<div class="error">${error.message}<br><span class="muted">Start FalkorDB and seed the graph first.</span></div>`;
+        } finally {
+          button.disabled = false;
+          button.textContent = "Trace this bug";
+        }
+      };
+      function render(data) {
+        $("empty").style.display = "none";
+        $("results").style.display = "block";
+        $("function").textContent = data.suspected_function;
+        $("confidence").textContent = `${data.confidence}% confidence`;
+        $("summary").textContent = data.summary;
+        if (data.needs_clarification)
+          $("summary").textContent +=
+            " This report is too vague or outside the loaded codebase; please provide the affected behavior or module for a more reliable trace.";
+        $("path").innerHTML = data.evidence.call_path
+          .map(
+            (n, i) =>
+              `<span class="node">${n}</span>${i < data.evidence.call_path.length - 1 ? '<span class="arrow">→</span>' : ""}`,
+          )
+          .join("");
+        drawGraph(data);
+        const c = data.evidence.commit;
+        $("commit").innerHTML = c.id
+          ? `<div class="commit"><b>${c.id}</b><br>${c.message}<br><span class="muted">${c.developer} · ${c.timestamp}</span></div>`
+          : '<span class="muted">No commit found</span>';
+        const m = data.similar_bug;
+        $("memory").innerHTML = m
+          ? `<div class="commit"><b>Similar bug recalled</b><br>${m.description}<br><span class="muted">Fix: ${m.fix || "historical investigation stored"}</span></div>`
+          : data.needs_clarification
+            ? '<span class="muted">Not saved: the report could not be mapped to a known function.</span>'
+            : '<span class="muted">No previous matching bug yet. This investigation is now saved to memory.</span>';
+        const s = data.semantic_extraction;
+        $("semantic").innerHTML = s
+          ? `<div class="commit"><b>LLM concepts</b><br>${[...(s.entities || []), ...(s.search_terms || [])].join(", ")}<br><span class="muted">Concepts are validated against the FalkorDB function graph.</span></div>`
+          : '<span class="muted">Deterministic fallback used. Add a Gemini or OpenRouter key to enable semantic extraction.</span>';
+        const t = data.test_recommendation;
+        $("test").innerHTML =
+          `<div class="commit"><b>${t.status === "historical" ? "Existing test found" : t.status === "unavailable" ? "Not enough evidence" : "Suggested test"}</b><br>${t.name}<br><span class="muted">${t.rationale}</span></div>`;
+        $("timeline").innerHTML = [
+          `Parsed report (${data.analysis_mode})`,
+          `Found ${data.ranked_candidates.length} candidate function(s)`,
+          `Traversed call graph`,
+          `Connected code to commit history`,
+          m ? "Recalled historical bug" : "Saved new bug memory",
+          "Generated regression-test recommendation",
+        ]
+          .map((x) => `<li>${x}</li>`)
+          .join("");
+        $("queries").textContent = JSON.stringify(data.queries, null, 2);
+      }
+      function drawGraph(data) {
+        const nodes = data.evidence.call_path;
+        const width = Math.max(520, nodes.length * 150),
+          height = 112;
+        const positions = nodes.map((_, i) => 75 + i * 145);
+        const lines = positions
+          .slice(0, -1)
+          .map(
+            (x, i) =>
+              `<line x1="${x + 54}" y1="48" x2="${positions[i + 1] - 54}" y2="48" stroke="#9aaef5" stroke-width="3" marker-end="url(#arrow)"/>`,
+          )
+          .join("");
+        const circles = nodes
+          .map(
+            (name, i) =>
+              `<g><rect x="${positions[i] - 54}" y="26" width="108" height="44" rx="10" fill="${i === 0 ? "#3559e0" : "#eef2ff"}" stroke="${i === 0 ? "#3559e0" : "#cbd6ff"}"/><text x="${positions[i]}" y="53" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="${i === 0 ? "white" : "#30479b"}">${name}</text></g>`,
+          )
+          .join("");
+        $("graph").innerHTML =
+          `<svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="Function call graph"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9aaef5"/></marker></defs>${lines}${circles}</svg>`;
+      }
+    </script>
+  </body>
 </html>
