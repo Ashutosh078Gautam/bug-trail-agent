@@ -11,4 +11,6 @@ FALKORDB_GRAPH = os.getenv("FALKORDB_GRAPH", "BugTrail")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openrouter/free")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 

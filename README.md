@@ -8,7 +8,7 @@ Bug Trail is an explainable codebase agent that takes a plain-English bug report
 - An AST loader that extracts the sample application's functions and local call relationships.
 - A FalkorDB graph containing functions, modules, commits, developers, bugs, fixes, and tests.
 - A deterministic investigation engine that ranks candidate functions using graph evidence.
-- Optional Gemini semantic extraction that understands paraphrased bug reports before graph retrieval.
+- Optional Gemini semantic extraction with an OpenRouter free-model fallback for paraphrased bug reports before graph retrieval.
 - Persistent bug memory for supported investigations. Related historical bugs are ranked by meaningful symptom-term overlap, so an unrelated bug affecting the same function is not recalled.
 - Safe clarification handling for reports outside the loaded codebase: no fallback function, fake evidence, or false memory entry is created.
 - A browser UI with an evidence timeline, confidence score, graph path, historical memory, and semantic-extraction details.
@@ -47,16 +47,26 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8765
 
 Open `http://localhost:8765`.
 
-### Optional Gemini semantic search
+### Gemini semantic search with OpenRouter fallback
 
-Bug Trail works without an LLM by using its deterministic keyword fallback. To enable richer semantic extraction, copy `.env.example` to `.env` and add your local `GEMINI_API_KEY`:
+Bug Trail works without an LLM by using its deterministic keyword fallback. When configured, it tries Gemini first and then OpenRouter's free-model router if Gemini is unavailable or rate-limited.
 
 ```powershell
 Copy-Item .env.example .env
-# Edit .env and set GEMINI_API_KEY
+# Edit .env and add one or both API keys
 ```
 
-The key is read only from `.env` and must never be committed. Gemini extracts search concepts; FalkorDB remains the source of truth for functions, call paths, commits, developers, and bug memory. If Gemini is unavailable or the key is empty, the deterministic fallback remains active.
+Set the optional provider settings in `.env`:
+
+```env
+LLM_PROVIDER=gemini
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_API_KEY=your_gemini_key
+OPENROUTER_MODEL=openrouter/free
+OPENROUTER_API_KEY=your_openrouter_key
+```
+
+At least one API key is enough for semantic extraction. The keys are read only from `.env` and must never be committed. FalkorDB remains the source of truth for functions, call paths, commits, developers, and bug memory. If both cloud providers are unavailable, the deterministic fallback remains active.
 
 ### Optional: run the app in Docker
 
@@ -141,3 +151,4 @@ RETURN b
 - The data is synthetic and safe for a public repository.
 - The investigation endpoint returns the Cypher queries used as evidence.
 - AI coding assistance should be disclosed in the final submission.
+

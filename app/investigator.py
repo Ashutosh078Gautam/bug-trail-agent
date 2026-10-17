@@ -64,7 +64,7 @@ class Investigator:
             "bug_id": bug_id,
             "description": description,
             "semantic_extraction": semantic,
-            "analysis_mode": "gemini+graph" if semantic else "deterministic-fallback",
+            "analysis_mode": "llm+graph" if semantic else "deterministic-fallback",
             "needs_clarification": False,
             "suspected_function": best["name"],
             "confidence": best["score"],
