@@ -12,6 +12,11 @@ STOP_WORDS = {
 }
 
 
+def _meaningful_tokens(text: str) -> set[str]:
+    """Return normalized terms useful for comparing bug symptoms."""
+    return set(re.findall(r"[a-zA-Z][a-zA-Z0-9]+", text.lower())) - STOP_WORDS
+
+
 class Investigator:
     def __init__(self, store: BugTrailGraph) -> None:
         self.store = store
@@ -21,9 +26,8 @@ class Investigator:
         function_catalog = self._function_catalog()
         semantic = self.semantic_extractor.extract(description, function_catalog)
         candidates = self._candidate_functions(description, semantic)
-        used_fallback = not candidates
         if not candidates:
-            candidates = self._fallback_candidates()
+            return self._clarification_result(description, semantic)
 
         ranked = self._rank_candidates(description, candidates, semantic)
         best = ranked[0]
@@ -61,7 +65,7 @@ class Investigator:
             "description": description,
             "semantic_extraction": semantic,
             "analysis_mode": "gemini+graph" if semantic else "deterministic-fallback",
-            "needs_clarification": used_fallback and best["score"] <= 48,
+            "needs_clarification": False,
             "suspected_function": best["name"],
             "confidence": best["score"],
             "summary": self._summary(best, evidence, similar),
@@ -75,7 +79,24 @@ class Investigator:
                 "memory": "MATCH (b:Bug)-[:AFFECTS]->(f:Function) WHERE f.name = $function RETURN b ORDER BY b.created_at DESC",
             },
         }
-
+    @staticmethod
+    def _clarification_result(description: str, semantic: dict[str, Any] | None) -> dict[str, Any]:
+        """Return a safe response when the report cannot be mapped to this codebase."""
+        return {
+            "bug_id": None,
+            "description": description,
+            "semantic_extraction": semantic,
+            "analysis_mode": "unsupported-report",
+            "needs_clarification": True,
+            "suspected_function": "Needs clarification",
+            "confidence": 0,
+            "summary": "Not enough evidence to connect this report to the loaded codebase.",
+            "ranked_candidates": [],
+            "evidence": {"call_path": [], "module": "unknown", "commit": {"id": None, "message": None, "timestamp": None, "developer": None}},
+            "similar_bug": None,
+            "test_recommendation": {"name": "Provide the affected behavior or module first", "status": "unavailable", "rationale": "A regression test cannot be recommended until the report maps to a known function."},
+            "queries": {"path": "Not run: no matching function was found", "commit": "Not run: no matching function was found", "memory": "Not run: no matching function was found"},
+        }
     def _test_recommendation(self, function: str, similar: dict[str, Any] | None) -> dict[str, Any]:
         rows = self.store.query(
             """
@@ -176,12 +197,23 @@ class Investigator:
             MATCH (b:Bug)-[:AFFECTS]->(f:Function {name: $function})
             OPTIONAL MATCH (b)-[:RESOLVED_BY]->(fix:Fix)-[:IMPLEMENTED_BY]->(c:Commit)
             RETURN b.id, b.description, fix.description, c.id
-            ORDER BY b.created_at DESC LIMIT 1
+            ORDER BY b.created_at DESC
             """, {"function": function},
         )
-        if not rows:
+        report_terms = _meaningful_tokens(description)
+        best: tuple[float, int, list[Any]] | None = None
+        for row in rows:
+            historical_terms = _meaningful_tokens(str(row[1] or ""))
+            overlap = report_terms & historical_terms
+            if len(overlap) < 2:
+                continue
+            similarity = len(overlap) / len(report_terms | historical_terms)
+            candidate = (similarity, len(overlap), row)
+            if best is None or candidate[:2] > best[:2]:
+                best = candidate
+        if best is None:
             return None
-        row = rows[0]
+        row = best[2]
         return {"id": row[0], "description": row[1], "fix": row[2], "commit": row[3]}
 
     @staticmethod
