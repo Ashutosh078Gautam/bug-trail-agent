@@ -42,6 +42,7 @@
         <div class="card"><h3>Evidence path</h3><div id="path" class="path"></div><div id="graph" style="margin-top:16px"></div></div>
         <div class="card"><h3>Likely introducing commit</h3><div id="commit"></div></div>
         <div class="card"><h3>Historical memory</h3><div id="memory"></div></div>
+        <div class="card"><h3>Semantic extraction</h3><div id="semantic"></div></div>
         <div class="card"><h3>Regression test recommendation</h3><div id="test"></div></div>
         <div class="card"><h3>Investigation timeline</h3><ul id="timeline" class="timeline"></ul></div>
       </div>
@@ -62,12 +63,14 @@
     };
     function render(data) {
       $('empty').style.display = 'none'; $('results').style.display = 'block'; $('function').textContent = data.suspected_function; $('confidence').textContent = `${data.confidence}% confidence`; $('summary').textContent = data.summary;
+      if (data.needs_clarification) $('summary').textContent += ' This report is too vague or outside the loaded codebase; please provide the affected behavior or module for a more reliable trace.';
       $('path').innerHTML = data.evidence.call_path.map((n,i) => `<span class="node">${n}</span>${i < data.evidence.call_path.length-1 ? '<span class="arrow">→</span>' : ''}`).join('');
       drawGraph(data);
       const c = data.evidence.commit; $('commit').innerHTML = c.id ? `<div class="commit"><b>${c.id}</b><br>${c.message}<br><span class="muted">${c.developer} · ${c.timestamp}</span></div>` : '<span class="muted">No commit found</span>';
       const m = data.similar_bug; $('memory').innerHTML = m ? `<div class="commit"><b>Similar bug recalled</b><br>${m.description}<br><span class="muted">Fix: ${m.fix || 'historical investigation stored'}</span></div>` : '<span class="muted">No previous matching bug yet. This investigation is now saved to memory.</span>';
+      const s = data.semantic_extraction; $('semantic').innerHTML = s ? `<div class="commit"><b>Gemini concepts</b><br>${[...(s.entities || []), ...(s.search_terms || [])].join(', ')}<br><span class="muted">LLM concepts are validated against the FalkorDB function graph.</span></div>` : '<span class="muted">Deterministic fallback used. Add a Gemini key to enable semantic extraction.</span>';
       const t = data.test_recommendation; $('test').innerHTML = `<div class="commit"><b>${t.status === 'historical' ? 'Existing test found' : 'Suggested test'}</b><br>${t.name}<br><span class="muted">${t.rationale}</span></div>`;
-      $('timeline').innerHTML = [`Parsed report`, `Found ${data.ranked_candidates.length} candidate function(s)`, `Traversed call graph`, `Connected code to commit history`, m ? 'Recalled historical bug' : 'Saved new bug memory', 'Generated regression-test recommendation'].map(x => `<li>${x}</li>`).join(''); $('queries').textContent = JSON.stringify(data.queries, null, 2);
+      $('timeline').innerHTML = [`Parsed report (${data.analysis_mode})`, `Found ${data.ranked_candidates.length} candidate function(s)`, `Traversed call graph`, `Connected code to commit history`, m ? 'Recalled historical bug' : 'Saved new bug memory', 'Generated regression-test recommendation'].map(x => `<li>${x}</li>`).join(''); $('queries').textContent = JSON.stringify(data.queries, null, 2);
     }
     function drawGraph(data) {
       const nodes = data.evidence.call_path;

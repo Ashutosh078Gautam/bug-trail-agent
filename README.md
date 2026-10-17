@@ -8,6 +8,7 @@ Bug Trail is an explainable codebase agent that takes a plain-English bug report
 - An AST loader that extracts the sample application's functions and local call relationships.
 - A FalkorDB graph containing functions, modules, commits, developers, bugs, fixes, and tests.
 - A deterministic investigation engine that ranks candidate functions using graph evidence.
+- Optional Gemini semantic extraction that understands paraphrased bug reports before graph retrieval.
 - Persistent bug memory: investigations are stored in FalkorDB and can be recalled later.
 - A browser UI with an evidence timeline, confidence score, and graph path.
 - A regression-test recommendation based on historical fixes and verification tests.
@@ -44,6 +45,10 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8765
 ```
 
 Open `http://localhost:8765`.
+
+### Optional Gemini semantic search
+
+Bug Trail works without an LLM by using its deterministic keyword fallback. To enable richer semantic extraction, copy `.env.example` to `.env`, add your local `GEMINI_API_KEY`, and install the requirements. The key is read only from `.env` and must never be committed. Gemini extracts search concepts; FalkorDB remains the source of truth for functions, call paths, commits, developers, and bug memory.
 
 ### Optional: run the app in Docker
 

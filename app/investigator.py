@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.graph import BugTrailGraph
+from app.llm import SemanticExtractor
 
 
 STOP_WORDS = {
@@ -14,13 +15,17 @@ STOP_WORDS = {
 class Investigator:
     def __init__(self, store: BugTrailGraph) -> None:
         self.store = store
+        self.semantic_extractor = SemanticExtractor()
 
     def investigate(self, description: str) -> dict[str, Any]:
-        candidates = self._candidate_functions(description)
+        function_catalog = self._function_catalog()
+        semantic = self.semantic_extractor.extract(description, function_catalog)
+        candidates = self._candidate_functions(description, semantic)
+        used_fallback = not candidates
         if not candidates:
             candidates = self._fallback_candidates()
 
-        ranked = self._rank_candidates(description, candidates)
+        ranked = self._rank_candidates(description, candidates, semantic)
         best = ranked[0]
         evidence = self._evidence(best["name"])
         similar = self._similar_bugs(description, best["name"])
@@ -54,6 +59,9 @@ class Investigator:
         return {
             "bug_id": bug_id,
             "description": description,
+            "semantic_extraction": semantic,
+            "analysis_mode": "gemini+graph" if semantic else "deterministic-fallback",
+            "needs_clarification": used_fallback and best["score"] <= 48,
             "suspected_function": best["name"],
             "confidence": best["score"],
             "summary": self._summary(best, evidence, similar),
@@ -88,21 +96,36 @@ class Investigator:
             "rationale": "No linked verification test was found in the graph yet.",
         }
 
-    def _candidate_functions(self, description: str) -> list[str]:
+    def _function_catalog(self) -> list[dict[str, Any]]:
+        return [
+            {"name": row[0], "keywords": row[1]}
+            for row in self.store.query("MATCH (f:Function) RETURN f.name, f.keywords")
+        ]
+
+    def _candidate_functions(self, description: str, semantic: dict[str, Any] | None = None) -> list[str]:
         words = set(re.findall(r"[a-zA-Z][a-zA-Z0-9]+", description.lower()))
+        if semantic:
+            words.update(str(term).lower() for term in semantic.get("search_terms", []))
+            words.update(str(term).lower() for term in semantic.get("entities", []))
+            llm_candidates = semantic.get("candidate_functions", [])
+        else:
+            llm_candidates = []
         rows = self.store.query("MATCH (f:Function) RETURN f.name, f.keywords")
         candidates = []
         for name, keywords in rows:
             haystack = set(str(keywords or "").lower().split(",")) | set(name.lower().split("_"))
-            if words & haystack:
+            if name in llm_candidates or words & haystack:
                 candidates.append(name)
         return candidates
 
     def _fallback_candidates(self) -> list[str]:
         return [row[0] for row in self.store.query("MATCH (f:Function) RETURN f.name LIMIT 5")]
 
-    def _rank_candidates(self, description: str, candidates: list[str]) -> list[dict[str, Any]]:
+    def _rank_candidates(self, description: str, candidates: list[str], semantic: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         words = set(re.findall(r"[a-zA-Z][a-zA-Z0-9]+", description.lower())) - STOP_WORDS
+        if semantic:
+            words.update(str(term).lower() for term in semantic.get("search_terms", []))
+            words.update(str(term).lower() for term in semantic.get("entities", []))
         rows = self.store.query(
             """
             MATCH (f:Function)
