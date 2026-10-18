@@ -147,6 +147,7 @@ RETURN b
 
 ## Submission notes
 
+- Demo video: [Bug Trail demo video](demo/bug-trail-demo.mp4). The MP4 is tracked with Git LFS because it is larger than GitHub's standard 100 MB file limit.
 - FalkorDB is the primary graph database.
 - The data is synthetic and safe for a public repository.
 - The investigation endpoint returns the Cypher queries used as evidence.
